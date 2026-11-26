@@ -1,16 +1,15 @@
 {
   "name": "paseo-plugin-switch-provider",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Continue a Paseo agent session on another provider and model, compacting large histories with links to a saved transcript.",
   "author": "anh-chu",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/anh-chu/paseo-plugin-switch-provider.git"
+    "url": "git+https://github.com/yuchi0531/paseo-plugin-switch-provider.git"
   },
   "files": [
     "paseo-plugin.json",
-    "npm-shrinkwrap.json",
     "OVERVIEW.md",
     "README.md",
     "LICENSE",
@@ -19,14 +18,15 @@
     "client/",
     "server/",
     "shared/",
-    "assets/"
+    "assets/",
+    "package-lock.json"
   ],
   "scripts": {
     "typecheck": "tsc --noEmit",
     "check": "esbuild test/compact.check.ts --bundle --platform=node --format=esm --outfile=/tmp/switch-provider-check.mjs --log-level=error && node /tmp/switch-provider-check.mjs"
   },
   "devDependencies": {
-    "@getpaseo/plugin": "0.11.2",
+    "@getpaseo/plugin": "0.17.5",
     "@tanstack/react-query": "^5.90.11",
     "@types/node": "^26.6.5",
     "@types/react": "~19.2.0",
@@ -37,7 +37,7 @@
     "zod": "^4.4.3"
   },
   "dependencies": {
-    "@getpaseo/client": "0.11.2",
+    "@getpaseo/client": "0.17.5",
     "txcript": "^0.14.4"
   }
 }

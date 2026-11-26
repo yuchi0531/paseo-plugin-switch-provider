@@ -8,8 +8,15 @@
     "assets/screenshot-models.png",
     "assets/screenshot-switched.png"
   ],
-  "build": [["npm", "ci", "--omit=dev", "--ignore-scripts"]],
+  "build": [
+    [
+      "npm",
+      "ci",
+      "--omit=dev",
+      "--ignore-scripts"
+    ]
+  ],
   "requirements": {
-    "paseo": ">=0.11.2"
+    "paseo": ">=0.17.0"
   }
 }
