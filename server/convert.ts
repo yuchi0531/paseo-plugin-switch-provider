@@ -132,6 +132,25 @@ async function convertAndImport(
   return agentId;
 }
 
+/** A new agent that reads a full transcript file. Works for any provider pair, at the cost of history that lives in a file instead of the provider's own session. */
+async function transcriptHandoff(
+  input: { agentId: string; provider: string; title?: string | null; cwd: string },
+  target: { provider: string; modelId: string },
+  context: PluginHandlerContext,
+) {
+  const { path } = await exportAgentTranscript({ agentId: input.agentId }, context);
+  const prompt = [
+    `You are continuing the session of agent ${input.agentId} ("${input.title ?? "untitled"}"), which ran on ${input.provider}.`,
+    `Its full transcript, including tool calls and results, is in ${path}. Read the whole file before you act, then continue where that agent stopped.`,
+  ].join("\n");
+  const created = await context.paseo.agents.create({
+    cwd: input.cwd,
+    config: { provider: `${target.provider}/${target.modelId}` },
+    prompt,
+  });
+  return created.id;
+}
+
 /**
  * Continues the agent on another provider. Claude, Codex and pi sessions are converted to a native session, so history is complete. Other providers get a new agent that reads a full transcript file.
  */
@@ -145,15 +164,22 @@ export async function switchAgentSession(
   const { persistence, cwd } = snapshot;
   if (convertible(snapshot.provider, provider)) {
     if (!persistence) throw new Error("The source agent has no saved session yet; send it a message first");
-    const window = await targetWindow(paseo, provider, modelId);
-    const id = await convertAndImport({ provider: snapshot.provider, cwd, workspaceId: snapshot.workspaceId, persistence }, provider, modelId, window);
-    return { agentId: id, method: "converted" as const };
+    try {
+      const window = await targetWindow(paseo, provider, modelId);
+      const id = await convertAndImport({ provider: snapshot.provider, cwd, workspaceId: snapshot.workspaceId, persistence }, provider, modelId, window);
+      return { agentId: id, method: "converted" as const };
+    } catch (cause) {
+      // Paseo refuses a native import into OpenCode while it shares a discovered `opencode serve`
+      // service ("Custom OpenCode MCP servers or process environment require an isolated server"),
+      // and provider session formats drift between releases. Degrade to a transcript handoff
+      // instead of failing the whole switch.
+      log(`native conversion ${snapshot.provider} -> ${provider} failed, using a transcript handoff: ${cause instanceof Error ? cause.message : String(cause)}`);
+    }
   }
-  const { path } = await exportAgentTranscript({ agentId }, context);
-  const prompt = [
-    `You are continuing the session of agent ${agentId} ("${snapshot.title ?? "untitled"}"), which ran on ${snapshot.provider}.`,
-    `Its full transcript, including tool calls and results, is in ${path}. Read the whole file before you act, then continue where that agent stopped.`,
-  ].join("\n");
-  const created = await paseo.agents.create({ cwd, config: { provider: `${provider}/${modelId}` }, prompt });
-  return { agentId: created.id, method: "transcript" as const };
+  const id = await transcriptHandoff(
+    { agentId, provider: snapshot.provider, title: snapshot.title, cwd },
+    { provider, modelId },
+    context,
+  );
+  return { agentId: id, method: "transcript" as const };
 }
