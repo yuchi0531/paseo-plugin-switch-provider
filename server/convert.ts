@@ -171,9 +171,16 @@ export async function switchAgentSession(
     } catch (cause) {
       // Paseo refuses a native import into OpenCode while it shares a discovered `opencode serve`
       // service ("Custom OpenCode MCP servers or process environment require an isolated server"),
-      // and provider session formats drift between releases. Degrade to a transcript handoff
-      // instead of failing the whole switch.
-      log(`native conversion ${snapshot.provider} -> ${provider} failed, using a transcript handoff: ${cause instanceof Error ? cause.message : String(cause)}`);
+      // and provider session formats drift between releases. A transcript handoff needs to create an
+      // agent on the target provider, so it cannot rescue the OpenCode case: report it instead.
+      const message = cause instanceof Error ? cause.message : String(cause);
+      if (message.includes("require an isolated server and cannot be used with a shared OpenCode service")) {
+        throw new Error(
+          `Paseo is sharing the \`opencode serve\` service already running on this host, so it cannot create or import an OpenCode agent. ` +
+            `Stop that service (then Paseo starts its own OpenCode server) or pick a provider Paseo runs itself. Underlying error: ${message}`,
+        );
+      }
+      log(`native conversion ${snapshot.provider} -> ${provider} failed, using a transcript handoff: ${message}`);
     }
   }
   const id = await transcriptHandoff(
